@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imploding TikTok</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #000000;
+      --white: #ffffff;
+      --size-large: 13px;
+      --size-small: 11px;
+      --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+
+    html { background: var(--white); color: var(--black); }
+
+    body {
+      font-family: var(--font);
+      font-size: var(--size-large);
+      line-height: 1.6;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 56px 24px 100px;
+      overflow-x: hidden;
+    }
+
+    /* HEADER */
+    header {
+      border-top: 2px solid var(--black);
+      border-bottom: 1px solid var(--black);
+      padding: 22px 0 18px;
+      margin-bottom: 2px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 20px;
+    }
+
+    .header-left { display: flex; flex-direction: column; gap: 6px; }
+
+    h1 {
+      font-size: var(--size-large);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .meta {
+      font-size: var(--size-small);
+      opacity: 0.45;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .meta a {
+      color: var(--black);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .meta a:hover { opacity: 0.6; }
+
+    .tiktok-logo { width: 34px; height: 34px; flex-shrink: 0; }
+
+    /* INTRO */
+    .intro {
+      border: 1px solid var(--black);
+      border-top: none;
+      padding: 18px 20px;
+      margin-bottom: 2px;
+    }
+
+    .intro p { font-size: var(--size-large); line-height: 1.6; }
+
+    /* CONTROLS */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 0 9px;
+    }
+
+    .drag-hint {
+      font-size: var(--size-small);
+      opacity: 0.3;
+      letter-spacing: 0.02em;
+    }
+
+    .implode-btn {
+      font-family: var(--font);
+      font-size: var(--size-small);
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      padding: 5px 14px 6px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .implode-btn:hover { opacity: 0.65; }
+    .implode-btn:disabled { opacity: 0.25; cursor: default; }
+
+    /* GRID */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    /* CARD */
+    .card {
+      border: 1px solid var(--black);
+      padding: 18px 20px 16px;
+      cursor: grab;
+      user-select: none;
+      background: var(--white);
+      transition: opacity 0.12s;
+      position: relative;
+    }
+
+    .card:active { cursor: grabbing; }
+    .card.dragging { opacity: 0.3; }
+    .card.drag-target { outline: 2px solid var(--black); outline-offset: -3px; }
+
+    @keyframes flyoff {
+      0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.3); opacity: 0; }
+    }
+
+    .card.flying {
+      animation: flyoff 0.55s cubic-bezier(0.4, 0, 0.9, 0.6) forwards;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    .card.gone { visibility: hidden; }
+
+    .card-number {
+      font-size: var(--size-small);
+      font-weight: 700;
+      opacity: 0.22;
+      letter-spacing: 0.05em;
+      margin-bottom: 1px;
+    }
+
+    .card-label {
+      font-size: var(--size-small);
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--black);
+    }
+
+    .card-body {
+      font-size: var(--size-small);
+      line-height: 1.68;
+    }
+
+    .confidence {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--black);
+    }
+
+    .confidence-label {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-size: 9px;
+      opacity: 0.45;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .confidence-text {
+      font-style: italic;
+      opacity: 0.55;
+      font-size: var(--size-small);
+      line-height: 1.55;
+    }
+
+    sup {
+      font-size: 8px;
+      vertical-align: super;
+      font-weight: 700;
+      line-height: 0;
+    }
+
+      border: 1px solid var(--black);
+      padding: 20px;
+      margin-bottom: 2px;
+
+    .closing p {
+      font-size: var(--size-small);
+      line-height: 1.68;
+      font-style: italic;
+    }
+
+    /* REFERENCES */
+    .references {
+      border: 1px solid var(--black);
+      padding: 20px;
+      margin-bottom: 40px;
+    }
+
+    .references-label {
+      font-size: var(--size-small);
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--black);
+    }
+
+    .ref-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+
+    .ref-list li {
+      font-size: var(--size-small);
+      line-height: 1.5;
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 6px;
+    }
+
+    .ref-num { font-weight: 700; opacity: 0.28; }
+
+    .ref-list a {
+      color: var(--black);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      word-break: break-all;
+    }
+
+    .ref-list a:hover { opacity: 0.5; }
+
+    footer {
+      border-top: 1px solid var(--black);
+      padding-top: 14px;
+      font-size: var(--size-small);
+      opacity: 0.32;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    footer a {
+      color: var(--black);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    @media (max-width: 540px) {
+      .grid { grid-template-columns: 1fr; }
+      header { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <h1>Imploding TikTok</h1>
+      <div class="meta">
+        <span>Samuel Robson</span>
+        <span>
+          <a href="https://journal.culanth.org/index.php/ca/article/view/ca29.2.09/301" target="_blank">Implosion Project</a>
+          &nbsp;·&nbsp; Joe Dumit, 2014 &nbsp;·&nbsp; 14 Dimensions
+        </span>
+      </div>
+    </div>
+    <svg class="tiktok-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="TikTok">
+      <path d="M38.6 11.1a10.8 10.8 0 01-6.4-6.4h-6.7v24.5a4.5 4.5 0 11-4.5-4.6c.4 0 .8.1 1.2.2V18c-.4 0-.8-.1-1.2-.1C13.9 17.9 8 23.8 8 31s5.9 13.1 13.1 13.1S34.2 38.2 34.2 31V19.5a17.4 17.4 0 0010.1 3.2v-6.7a10.8 10.8 0 01-5.7-4.9z" fill="#000"/>
+    </svg>
+  </header>
+
+  <div class="intro">
+    <p>The artifact is TikTok: a short-form video platform owned by ByteDance through which content reaches over a billion users via the algorithmic For You Page.</p>
+  </div>
+
+  <div class="controls">
+    <span class="drag-hint">Drag cards to reorder.</span>
+    <button class="implode-btn" id="implodeBtn">Implode</button>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="card" draggable="true">
+      <div class="card-number">01</div>
+      <div class="card-label">Labor</div>
+      <div class="card-body">Creators film, edit, and caption for little or no pay. The Creator Fund paid $0.02 to $0.04 per 1,000 views.<sup>1</sup> Content moderators are outsourced to contractors in Kenya and the Philippines. A former Nairobi moderator sued ByteDance and its contractor Majorel after being diagnosed with PTSD, describing no meaningful psychiatric support.<sup>2</sup> It is advertising revenue, sold through TikTok's commercial partnerships, that makes the free platform viable at all.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High on commercial operations from direct work experience on TikTok's Small Business Strategy team. Moderate on moderation infrastructure.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">02</div>
+      <div class="card-label">Professional &amp; Epistemic</div>
+      <div class="card-body">How the recommendation system works is largely unknowable from outside ByteDance. Academic API access is tightly restricted, and public understanding depends on leaks and court filings. Advertisers are told the algorithm rewards quality, a simplification that serves sales more than it describes the system.<sup>3</sup></div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">Moderate. Algorithmic explanations encountered through direct work experience were necessarily simplified for commercial audiences.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">03</div>
+      <div class="card-label">Material</div>
+      <div class="card-body">US user data sits on Oracle Cloud infrastructure under Project Texas, ByteDance's $1.5 billion national security concession to the US government.<sup>4,5</sup> Server hardware requires cobalt from the DRC and rare earths from Inner Mongolia. TikTok's data centre energy footprint is not publicly disclosed.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">Moderate. Infrastructure partially documented in regulatory filings. Energy data unavailable.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">04</div>
+      <div class="card-label">Technological</div>
+      <div class="card-body">The For You Page ranks content on implicit signals: watch time, replays, shares, rather than social connections. The architecture likely follows a two-tower neural network model, inferred from published ByteDance research rather than confirmed internally. Douyin runs on separate infrastructure under different content rules.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High on product architecture from direct work experience with TikTok ad technology teams. Moderate on internal specifics, which are inferred.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">05</div>
+      <div class="card-label">Context &amp; Situatedness</div>
+      <div class="card-body">TikTok is typically encountered on a vertical screen with sound on, in the hour before sleep. It is a sound-first platform by design, inheriting Musical.ly's lip-sync culture. The infinite scroll has no built-in stopping point, which is a product decision rather than a technical constraint.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High. Directly observable and consistent with direct work experience of the platform.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">06</div>
+      <div class="card-label">Political</div>
+      <div class="card-body">The 2024 Protecting Americans from Foreign Adversary Controlled Applications Act required ByteDance to divest TikTok or face a ban. The app went dark briefly in January 2025.<sup>6</sup> CFIUS scrutiny dates to 2019. India banned the platform outright in 2020. EU Digital Services Act obligations now apply across European markets.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High. Based on public legislative records and court filings.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">07</div>
+      <div class="card-label">Economic</div>
+      <div class="card-body">Revenue runs on a real-time CPM auction in which paid and organic content compete invisibly. ByteDance reported over $110 billion in revenue in 2023, with TikTok and Douyin as the primary contributors.<sup>7</sup> The pitch to small businesses was that ads feel native to the feed, a claim that only holds if organic content stays compelling enough to hold attention.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High. Revenue from Bloomberg. Commercial model and SMB pitch from direct work experience on TikTok's Small Business Strategy team.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">08</div>
+      <div class="card-label">Textual</div>
+      <div class="card-body">TikTok carries text it did not author: ASR captions, hashtags as algorithmic signals, and a comment section that operates as its own performative genre. The platform's journalistic record is anchored by the BuzzFeed News internal recordings<sup>8</sup> and The Guardian's 2019 moderation guidelines leak.<sup>9</sup></div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High. Directly observable. Sources cited and publicly available.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">09</div>
+      <div class="card-label">Bodily &amp; Organic</div>
+      <div class="card-body">The 9:16 format fits the resting grip of a phone-holding hand. Content is engineered to hook within two seconds because completion rate drives ranking. Research associates heavy use with anxiety, depression, and disrupted sleep in adolescents.<sup>10</sup></div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">Moderate. Design rationale inferred from product behaviour. Health outcomes from peer-reviewed literature.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">10</div>
+      <div class="card-label">Historical</div>
+      <div class="card-body">Musical.ly was founded in Shanghai in 2014, acquired by ByteDance in 2017, and relaunched as TikTok in 2018.<sup>11</sup> COVID-19 lockdowns drove 315 million downloads in Q1 2020, a quarterly record at the time.<sup>12</sup> Leaked 2019 moderation documents showed instructions to suppress content about Tiananmen Square, Tibetan independence, and Falun Gong.<sup>9</sup></div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High. Corporate history and figures well documented. Moderation leak via The Guardian.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">11</div>
+      <div class="card-label">Particle</div>
+      <div class="card-body">TikTok decomposes into: the video file; the sound, which circulates independently across videos and is the primary viral vector; the recommendation event that matches content to user; and the interaction affordances (like, stitch, duet) whose signals feed back into the model.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High. Directly observable product structure, consistent with direct work experience of the platform.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">12</div>
+      <div class="card-label">Educational</div>
+      <div class="card-body">"LearnTok" emerged without the platform intending it, with doctors, historians, and scientists building large audiences. The problem is that the same ranking logic governs health misinformation and careful expertise alike. Confident delivery routinely outperforms accuracy.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">Moderate. Trend widely documented. Algorithmic parity between accuracy and misinformation is inferred from known ranking signals.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">13</div>
+      <div class="card-label">Mythological</div>
+      <div class="card-body">The founding myth is democratic reach: anyone can go viral without an existing audience. This is true often enough to sustain a large unpaid creator base. The algorithm is anthropomorphised as an oracle. In US political culture, TikTok has become a vessel for surveillance anxieties that exceed the documented evidence.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">High on creator mythology from direct work experience. Moderate on surveillance claims.</span>
+      </div>
+    </div>
+
+    <div class="card" draggable="true">
+      <div class="card-number">14</div>
+      <div class="card-label">Symbolic</div>
+      <div class="card-body">TikTok is simultaneously a symbol of democratised creative reach and of Chinese technological ambition at the centre of everyday American life. Creators type "fyp" in captions believing it signals the algorithm toward wider distribution. It does not work that way. The ritual persists because the system is opaque.</div>
+      <div class="confidence">
+        <span class="confidence-label">Confidence</span>
+        <span class="confidence-text">Moderate. Cultural observation rather than empirical measurement.</span>
+      </div>
+    </div>
+
+  </div>
+
+
+  <div class="references">
+    <div class="references-label">References</div>
+    <ol class="ref-list">
+      <li><span class="ref-num">1</span><span>Influencer Marketing Hub (2025). <em>How Much Does TikTok Pay?</em> <a href="https://influencermarketinghub.com/how-much-does-tiktok-pay/" target="_blank">influencermarketinghub.com/how-much-does-tiktok-pay/</a></span></li>
+      <li><span class="ref-num">2</span><span>Perrigo, B. (2023). Former TikTok Moderator Threatens Lawsuit in Kenya. <em>TIME.</em> <a href="https://time.com/6293271/tiktok-bytedance-kenya-moderator-lawsuit/" target="_blank">time.com/6293271/tiktok-bytedance-kenya-moderator-lawsuit/</a></span></li>
+      <li><span class="ref-num">3</span><span>Breland, A. (2023). Has TikTok Implemented Project Texas? <em>Lawfare.</em> <a href="https://www.lawfaremedia.org/article/has-tiktok-implemented-project-texas" target="_blank">lawfaremedia.org/article/has-tiktok-implemented-project-texas</a></span></li>
+      <li><span class="ref-num">4</span><span>Breland, A. &amp; Holt, K. (2023). Project Texas: The Details of TikTok's Plan to Remain Operational in the United States. <em>Lawfare.</em> <a href="https://www.lawfaremedia.org/article/project-texas-the-details-of-tiktok-s-plan-to-remain-operational-in-the-united-states" target="_blank">lawfaremedia.org/article/project-texas&hellip;</a></span></li>
+      <li><span class="ref-num">5</span><span>TikTok Newsroom (2022). Delivering on Our US Data Governance. <a href="https://newsroom.tiktok.com/en-us/delivering-on-our-us-data-governance" target="_blank">newsroom.tiktok.com/en-us/delivering-on-our-us-data-governance</a></span></li>
+      <li><span class="ref-num">6</span><span>Wikipedia (2025). Protecting Americans from Foreign Adversary Controlled Applications Act. <a href="https://en.wikipedia.org/wiki/Protecting_Americans_from_Foreign_Adversary_Controlled_Applications_Act" target="_blank">en.wikipedia.org/wiki/Protecting_Americans&hellip;</a></span></li>
+      <li><span class="ref-num">7</span><span>Bloomberg (2023). ByteDance's Sales Break $110 Billion. <em>Yahoo Finance.</em> <a href="https://finance.yahoo.com/news/bytedance-sales-surged-above-110-060836399.html" target="_blank">finance.yahoo.com/news/bytedance-sales-surged-above-110&hellip;</a></span></li>
+      <li><span class="ref-num">8</span><span>Baker-White, E. (2022). Leaked Audio From 80 Internal TikTok Meetings Shows That US User Data Has Been Repeatedly Accessed From China. <em>BuzzFeed News.</em> <a href="https://www.buzzfeednews.com/article/emilybakerwhite/tiktok-tapes-us-user-data-china-bytedance-access" target="_blank">buzzfeednews.com/article/emilybakerwhite/tiktok-tapes&hellip;</a></span></li>
+      <li><span class="ref-num">9</span><span>Hern, A. (2019). Revealed: How TikTok Censors Videos That Do Not Please Beijing. <em>The Guardian.</em> <a href="https://www.theguardian.com/technology/2019/sep/25/revealed-how-tiktok-censors-videos-that-do-not-please-beijing" target="_blank">theguardian.com/technology/2019/sep/25/revealed&hellip;</a></span></li>
+      <li><span class="ref-num">10</span><span>Konstantopoulou, G. et al. (2025). Association Between TikTok Use and Anxiety, Depression, and Sleepiness Among Adolescents. <em>PMC.</em> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11932271/" target="_blank">pmc.ncbi.nlm.nih.gov/articles/PMC11932271/</a></span></li>
+      <li><span class="ref-num">11</span><span>Business of Apps (2026). TikTok Revenue and Usage Statistics. <a href="https://www.businessofapps.com/data/tik-tok-statistics/" target="_blank">businessofapps.com/data/tik-tok-statistics/</a></span></li>
+      <li><span class="ref-num">12</span><span>Chapple, C. (2020). TikTok Crosses 2 Billion Downloads After Best Quarter For Any App Ever. <em>Sensor Tower.</em> <a href="https://sensortower.com/blog/tiktok-downloads-2-billion" target="_blank">sensortower.com/blog/tiktok-downloads-2-billion</a></span></li>
+    </ol>
+  </div>
+
+  <footer>
+    <span>Samuel Robson &nbsp;·&nbsp; 2026</span>
+    <span><a href="https://journal.culanth.org/index.php/ca/article/view/ca29.2.09/301" target="_blank">Implosion Project</a> &nbsp;·&nbsp; Dumit 2014</span>
+  </footer>
+
+  <script>
+    /* ── DRAG TO REORDER ── */
+    const grid = document.getElementById('grid');
+    let dragged = null;
+
+    grid.addEventListener('dragstart', e => {
+      const card = e.target.closest('.card');
+      if (!card) return;
+      dragged = card;
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+
+    grid.addEventListener('dragend', () => {
+      if (!dragged) return;
+      dragged.classList.remove('dragging');
+      [...grid.querySelectorAll('.card')].forEach(c => c.classList.remove('drag-target'));
+      dragged = null;
+    });
+
+    grid.addEventListener('dragover', e => {
+      e.preventDefault();
+      const card = e.target.closest('.card');
+      if (!card || card === dragged) return;
+      [...grid.querySelectorAll('.card')].forEach(c => c.classList.remove('drag-target'));
+      card.classList.add('drag-target');
+    });
+
+    grid.addEventListener('dragleave', e => {
+      const card = e.target.closest('.card');
+      if (card) card.classList.remove('drag-target');
+    });
+
+    grid.addEventListener('drop', e => {
+      e.preventDefault();
+      const target = e.target.closest('.card');
+      if (!target || target === dragged || !dragged) return;
+      const cards = [...grid.querySelectorAll('.card')];
+      const di = cards.indexOf(dragged);
+      const ti = cards.indexOf(target);
+      grid.insertBefore(dragged, di < ti ? target.nextSibling : target);
+      target.classList.remove('drag-target');
+    });
+
+    /* ── IMPLODE BUTTON ── */
+    const btn = document.getElementById('implodeBtn');
+    let imploded = false;
+
+    btn.addEventListener('click', () => {
+      if (imploded) {
+        // Reassemble
+        [...grid.querySelectorAll('.card')].forEach(card => {
+          card.classList.remove('flying', 'gone');
+          card.style.removeProperty('--tx');
+          card.style.removeProperty('--ty');
+          card.style.removeProperty('--rot');
+        });
+        btn.textContent = 'Implode';
+        imploded = false;
+        return;
+      }
+
+      // Fly off
+      const cards = [...grid.querySelectorAll('.card')];
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      cards.forEach((card, i) => {
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+
+        // Direction: away from page centre
+        const dx = cx - vw / 2;
+        const dy = cy - vh / 2;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = 900 + Math.random() * 400;
+
+        const tx = (dx / dist) * force * (0.8 + Math.random() * 0.6);
+        const ty = (dy / dist) * force * (0.8 + Math.random() * 0.6);
+        const rot = (Math.random() - 0.5) * 60;
+        const delay = i * 35;
+
+        card.style.setProperty('--tx', tx + 'px');
+        card.style.setProperty('--ty', ty + 'px');
+        card.style.setProperty('--rot', rot + 'deg');
+        card.style.animationDelay = delay + 'ms';
+        card.classList.add('flying');
+
+        setTimeout(() => card.classList.add('gone'), delay + 580);
+      });
+
+      btn.textContent = 'Reassemble';
+      imploded = true;
+    });
+  </script>
+
+</body>
+</html>
